@@ -1,7 +1,7 @@
 #Zijie Zhang, Sep.24/2023
 #
 #This is the only file you need to change. reversi_client.py calls choose_move() every time it is your turn.
-
+import time
 import numpy as np
 from reversi import reversi
 
@@ -21,39 +21,61 @@ def choose_move(board, turn, time_limit):
         game.step(x, y, turn, commit = False)   -> how many pieces that move flips, board untouched
         game.step(x, y, turn)                   -> actually play it (copy the board first when searching ahead)
     """
-    return miniMax(turn, 3).chooseMove(board, turn)
+    return miniMax(turn, time_limit).chooseMove(board, turn)
 
     
 class miniMax:
-    def __init__(self, me, depth):
+    def __init__(self, me, time_limit):
         self.me = me
-        self.depth = depth
+        if time_limit is None:
+            self.deadline = float('inf')
+            self.maxDepth = 4
+        else:
+            self.deadline = time.perf_counter() + 0.8 * time_limit
+            self.maxDepth = 60
 
-    def search(self, board, turn, depth, score):
+    def search(self, board, turn, depth, score, alpha, beta):
+        if time.perf_counter() > self.deadline:
+            raise TimeoutError
         if depth == 0:
             return score(board, self.me)
         game = reversi()
-        game.board = board.copy()
+        game.board = board
         moves = game.legal_moves(turn)
 
         if len(moves) == 0:
             if len(game.legal_moves(-turn)) == 0:
-                return score(board, self.me)
-            return self.search(board, -turn, depth-1, score)
+                return 1000 * evaluation().pieceScore(board, self.me)
+            return self.search(board, -turn, depth-1, score, alpha, beta)
         
-        values = []
+        if turn == self.me:
+            best = float('-inf')
+            for x, y in moves:
+                child = reversi()
+                child.board = board.copy()
+                child.step(x, y, turn)
+                value = self.search(child.board, -turn, depth-1, score, alpha, beta)
+                best = max(best, value)
+                alpha = max(alpha, best)
+                if alpha >= beta:
+                    break
+            return best
+
+        best = float('inf')
         for x, y in moves:
             child = reversi()
             child.board = board.copy()
             child.step(x, y, turn)
-            values.append(self.search(child.board, -turn, depth-1, score))
-        if turn == self.me:
-            return max(values)
-        return min(values)
+            value = self.search(child.board, -turn, depth-1, score, alpha, beta)
+            best = min(best, value)
+            beta = min(beta, best)
+            if alpha >= beta:
+                break
+        return best
     
-    def bestMove(self, board, turn, score):
+    def bestMove(self, board, turn, depth, score):
         game = reversi()
-        game.board = board.copy()
+        game.board = board
 
         best_move = (-1, -1)
         best_value = float('-inf')
@@ -61,7 +83,7 @@ class miniMax:
             child = reversi()
             child.board = board.copy()
             child.step(x, y, turn)
-            value = self.search(child.board, -turn, self.depth-1, score)
+            value = self.search(child.board, -turn, depth-1, score, best_value, float('inf'))
             if value > best_value:
                 best_value = value
                 best_move = (x, y)
@@ -69,7 +91,17 @@ class miniMax:
     
     def chooseMove(self, board, turn):
         score = evaluation().chooseScoringFunction(board)
-        return self.bestMove(board, turn, score)
+        emptySquares = np.count_nonzero(board == 0)
+
+        best_move = self.bestMove(board, turn, 1, score)
+        depth = 2
+        try:
+            while depth <= min(self.maxDepth, emptySquares):
+                best_move = self.bestMove(board, turn, depth, score)
+                depth += 1
+        except TimeoutError:
+            pass
+        return best_move
 
 class evaluation:
     def chooseScoringFunction(self, board):
@@ -96,7 +128,7 @@ class evaluation:
 
     def mobilityScore(self, board, me):
         game = reversi()
-        game.board = board.copy()
+        game.board = board
         return len(game.legal_moves(me)) - len(game.legal_moves(-me))
 
     def positionScore(self, board, me):
