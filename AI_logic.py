@@ -31,7 +31,7 @@ class miniMax:
             self.deadline = float('inf')
             self.maxDepth = 4
         else:
-            self.deadline = time.perf_counter() + 0.8 * time_limit
+            self.deadline = time.perf_counter() + 0.9 * time_limit
             self.maxDepth = 60
 
     def search(self, board, turn, depth, score, alpha, beta):
