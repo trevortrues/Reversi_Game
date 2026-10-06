@@ -104,9 +104,16 @@ class miniMax:
         return best_move
 
 class evaluation:
-    def chooseScoringFunction(self, board):
         #add conditionals based on current state of game / if we can guess what opponent is using
-        return self.combinedScore
+    def chooseScoringFunction(self, board):
+        empty_squares = np.count_nonzero(board == 0)
+
+        if empty_squares > 44:
+            return self.openingScore
+        elif empty_squares > 16:
+            return self.midgameScore
+        else:
+            return self.endgameScore
 
     def pieceScore(self, board, me):
         return np.count_nonzero(board == me) - np.count_nonzero(board == -me)
@@ -137,6 +144,28 @@ class evaluation:
     def combinedScore(self, board, me):
         return (25 * self.cornerScore(board, me) + 5 * self.mobilityScore(board, me) + .1 * self.positionScore(board, me) + self.pieceScore(board, me))
 
+    def openingScore(self, board, me):
+        return (
+            30 * self.cornerScore(board, me)
+            + 10 * self.mobilityScore(board, me)
+            + 1 * self.positionScore(board, me)
+            + 0.1 * self.pieceScore(board, me)
+        )
 
+    def midgameScore(self, board, me):
+        return (
+            35 * self.cornerScore(board, me)
+            + 8 * self.mobilityScore(board, me)
+            + 1 * self.positionScore(board, me)
+            + 1 * self.pieceScore(board, me)
+        )
+
+    def endgameScore(self, board, me):
+        return (
+            40 * self.cornerScore(board, me)
+            + 2 * self.mobilityScore(board, me)
+            + 1 * self.positionScore(board, me)
+            + 10 * self.pieceScore(board, me)
+        )
 
 
